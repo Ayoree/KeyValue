@@ -13,27 +13,33 @@ void Session::readSocket()
     auto self = shared_from_this();
     readVal<bool>([this, self](bool isGetOperation) {
         readVal<size_t>([this, self, isGetOperation](size_t bufSize) {
-            readVal<char>(bufSize, [this, self, isGetOperation](std::vector<char> buf){
-                EntriesContainer& entries = ConfigReader::inst().getEntries();
+            readVal<char>(bufSize, [this, self, isGetOperation](std::vector<char> buf) {
                 std::string key(buf.begin(), buf.end());
-                m_selectedEntry = entries.contains(key) ? &entries.at(key).read() : nullptr;
 
-                // setting value
-                if (!isGetOperation)
+                if (isGetOperation)
                 {
-                    readVal<size_t>([this, self](size_t bufSize) {
-                        readVal<char>(bufSize, [this, self](std::vector<char> buf){
-                            if (m_selectedEntry)
-                            {
-                                std::string newVal(buf.begin(), buf.end());
-                                m_selectedEntry->write(newVal);
-                            }
+                    m_selectedEntry = ConfigReader::inst().safeRead<Entry*>([&](EntriesContainer& entries) {
+                            return entries.contains(key) ? &entries.at(key).read() : nullptr;
+                        });
+                    writeSocket();
+                }
+                else
+                {
+                    readVal<size_t>([this, self, key = std::move(key)](size_t bufSize) {
+                        readVal<char>(bufSize, [this, self, key = std::move(key)](std::vector<char> buf) {
+                            std::string newVal(buf.begin(), buf.end());
+                            m_selectedEntry = ConfigReader::inst().safeWrite<Entry*>([&](EntriesContainer& entries) {
+                                if (!entries.contains(key))
+                                {
+                                    entries.emplace(key, newVal);
+                                    return &entries.at(key);
+                                }
+                                    return &entries.at(key).write(newVal);
+                                });
                             writeSocket();
                         });
                     });
                 }
-                else
-                    writeSocket();
             });
         });
     });

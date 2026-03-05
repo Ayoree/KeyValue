@@ -7,14 +7,14 @@ Entry::Entry(std::string val, const uint32_t reads /*= 0*/, const uint32_t write
 
 Entry &Entry::read()
 {
-    std::lock_guard<std::mutex> lock(m_mtx);
+    std::shared_lock lk(m_mtx);
     ++m_reads;
     return *this;
 }
 
 Entry &Entry::write(std::string newVal)
 {
-    std::lock_guard<std::mutex> lock(m_mtx);
+    std::lock_guard lk(m_mtx);
     m_val = std::move(newVal);
     ++m_writes;
     return *this;

@@ -33,20 +33,20 @@ private:
 
     static void saveToFile(const std::string& path)
     {
-        std::ofstream file(path, std::ios::out | std::ios::trunc);
-        if (!file.is_open())
-        {
-            println(stderr, "Can't open save file `{}`, save will be skipped", path);
-            return;
-        }
-
-        for (const EntriesContainer& entries = ConfigReader::inst().getEntries(); const auto& pair : entries)
-        {
-            const auto& [key, entry] = pair;
-            file << key << "\n" << entry.getVal() << "\n";
-        }
-        file.flush();
-        std::println("Config saved");
+        ConfigReader::inst().safeRead<void>([path](const EntriesContainer& entries) {
+            std::ofstream file(path, std::ios::out | std::ios::trunc);
+            if (!file.is_open())
+            {
+                println(stderr, "Can't open save file `{}`, save will be skipped", path);
+                return;
+            }
+            for (const auto& [key, entry] : entries)
+            {
+                file << key << "\n" << entry.getVal() << "\n";
+            }
+            file.flush();
+            std::println("Config saved");
+        });
     }
 
     static constexpr std::chrono::seconds INTERVAL{5};
